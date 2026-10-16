@@ -1,0 +1,6 @@
+@Grafana_Monitor_HostAddress = http://localhost:5015
+
+GET {{Grafana_Monitor_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
