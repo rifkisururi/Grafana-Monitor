@@ -12,6 +12,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+// CORS terbuka (khusus demo lokal, tanpa autentikasi): memungkinkan wwwroot/stress.html
+// menembak API ini dari file:// atau origin lain tanpa diblokir browser.
+builder.Services.AddCors(options => options.AddDefaultPolicy(
+    policy => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 builder.Services.AddOptions<DemoOptions>()
     .Bind(builder.Configuration.GetSection(DemoOptions.SectionName))
     .PostConfigure<IConfiguration>((options, configuration) =>
@@ -78,6 +82,8 @@ builder.Services.AddOpenTelemetry()
         .AddPrometheusExporter());
 
 var app = builder.Build();
+app.UseCors(); // harus sebelum Map* agar preflight OPTIONS terlayani
+app.UseStaticFiles(); // sajikan wwwroot/ → http://<host>:8080/stress.html
 app.MapControllers();
 app.MapOpenApi();
 app.MapScalarApiReference();
