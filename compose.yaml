@@ -1,0 +1,93 @@
+name: grafana-monitor-demo
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: monitor_demo
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d monitor_demo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [demo]
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      ConnectionStrings__AppDb: Host=postgres;Port=5432;Database=monitor_demo;Username=demo;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env};Pooling=true;Maximum Pool Size=${DB_POOL_MAX_SIZE:-4};Timeout=15;Command Timeout=20;Application Name=monitor-demo-api
+      DATABASE_URL: ${DATABASE_URL:-}
+      DEMO_HEAVY_SLEEP_SECONDS: ${DEMO_HEAVY_SLEEP_SECONDS:-3}
+      DEMO_REPORT_MODE: ${DEMO_REPORT_MODE:-slow}
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8080'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [demo]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    healthcheck:
+      test: ["CMD", "/bin/prometheus", "--version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus]
+    networks: [demo]
+
+  k6:
+    image: grafana/k6:0.54.0
+    profiles: [tools]
+    entrypoint: ["k6"]
+    volumes:
+      - ./loadtest:/scripts:ro
+      - ./artifacts:/output
+    environment:
+      BASE_URL: ${BASE_URL:-http://api:8080}
+    networks: [demo]
+
+volumes:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  demo:
+    name: ${DOCKER_NETWORK:-grafana-monitor-demo}
+    driver: bridge

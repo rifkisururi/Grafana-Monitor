@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 5s # seberapa sering Prometheus menarik metrik dari semua target
+  evaluation_interval: 5s # seberapa sering recording/alerting rules dievaluasi
+
+scrape_configs:
+  - job_name: aspnet-api # label "job" yang menempel di semua metrik dari target ini
+    metrics_path: /metrics # endpoint yang dibuka MapPrometheusScrapingEndpoint() di Program.cs
+    static_configs:
+      - targets: [api:8080] # "api" = nama service docker; 8080 = port di DALAM container (bukan port host)
