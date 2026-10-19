@@ -11,9 +11,18 @@ public sealed class ReportService(IReportRepository repository, IOptions<DemoOpt
     {
         var config = options.Value;
         var count = await repository.GetOrderCountAsync(
+            "heavy",
             config.HeavySleepSeconds,
             config.ReportMode == "slow",
             cancellationToken);
         return new HeavyReportDto(count, config.ReportMode);
+    }
+
+    // Report "normal": query COUNT(*) yang sama tanpa pg_sleep — pembanding cepat untuk demo
+    // (label endpoint="normal" membuat panel SQL execution p95 memisahkan normal vs heavy).
+    public async Task<HeavyReportDto> GetNormalReportAsync(CancellationToken cancellationToken)
+    {
+        var count = await repository.GetOrderCountAsync("normal", 0, simulateSlowQuery: false, cancellationToken);
+        return new HeavyReportDto(count, "normal");
     }
 }

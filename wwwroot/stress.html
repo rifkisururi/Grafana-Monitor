@@ -86,7 +86,11 @@
         <select id="endpoint">
           <option value="/api/products">GET /api/products</option>
           <option value="/api/orders">GET /api/orders</option>
+          <option value="/api/reports/normal">GET /api/reports/normal (cepat — pembanding)</option>
           <option value="/api/reports/heavy">GET /api/reports/heavy (sleep — pool contention)</option>
+          <option value="/api/reports/heavy-memory">GET /api/reports/heavy-memory (memory, 64 MB / 10s)</option>
+          <option value="/api/reports/heavy-cpu">GET /api/reports/heavy-cpu (CPU, 10s)</option>
+          <option value="/api/reports/heavy-both">GET /api/reports/heavy-both (memory + CPU)</option>
           <option value="/health/live">GET /health/live</option>
           <option value="">Endpoint lain…</option>
         </select>
@@ -101,8 +105,8 @@
       </div>
       <div class="row2">
         <div>
-          <label for="concurrency">Concurrency (worker paralel)</label>
-          <input id="concurrency" type="number" min="1" max="128" value="16">
+          <label for="concurrency">Concurrency (maks 2 untuk resource stress default)</label>
+          <input id="concurrency" type="number" min="1" max="2" value="1">
         </div>
         <div>
           <label for="duration">Durasi (detik, 0 = sampai di-stop)</label>
@@ -142,9 +146,12 @@
   </div>
 
   <div class="hint">
-    Catatan: browser membatasi ±6 koneksi simultan per host (HTTP/1.1) — concurrency di atas itu akan mengantre
-    di sisi browser. Untuk beban sungguhan gunakan k6 (<code>loadtest/demo.js</code>). Halaman ini disajikan oleh
-    API di <code>/stress.html</code> (same-origin), atau bisa dibuka langsung dari file karena API mengizinkan CORS.
+    Endpoint heavy-memory mengalokasikan 64 MB selama request; heavy-cpu memakai satu worker CPU selama 10 detik;
+    heavy-both menggabungkan keduanya. Server membatasi maksimal 2 request resource stress bersamaan dan bisa
+    mengembalikan HTTP 429. Nilai aktual mengikuti konfigurasi server. Gunakan hanya untuk demo di lingkungan
+    terisolasi; hentikan bila host mulai tidak responsif.
+    Browser juga membatasi ±6 koneksi simultan per host (HTTP/1.1). Untuk beban terukur gunakan k6
+    (<code>loadtest/demo.js</code>). Halaman tersedia di <code>/stress.html</code>.
   </div>
 </div>
 

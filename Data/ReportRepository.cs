@@ -6,9 +6,9 @@ namespace Grafana_Monitor.Data;
 
 public sealed class ReportRepository(NpgsqlDataSource dataSource, DbPoolMetrics metrics) : IReportRepository
 {
-    public async Task<long> GetOrderCountAsync(int sleepSeconds, bool simulateSlowQuery, CancellationToken cancellationToken)
+    public async Task<long> GetOrderCountAsync(string endpoint, int sleepSeconds, bool simulateSlowQuery, CancellationToken cancellationToken)
     {
-        await using var lease = await metrics.AcquireAsync(dataSource, "heavy", cancellationToken);
+        await using var lease = await metrics.AcquireAsync(dataSource, endpoint, cancellationToken);
         var timer = Stopwatch.StartNew();
         if (simulateSlowQuery)
         {
@@ -19,7 +19,7 @@ public sealed class ReportRepository(NpgsqlDataSource dataSource, DbPoolMetrics 
 
         await using var count = new NpgsqlCommand("SELECT COUNT(*) FROM orders", lease.Connection);
         var orderCount = (long)(await count.ExecuteScalarAsync(cancellationToken) ?? 0L);
-        metrics.RecordQuery("heavy", timer.Elapsed.TotalSeconds);
+        metrics.RecordQuery(endpoint, timer.Elapsed.TotalSeconds);
         return orderCount;
     }
 }
